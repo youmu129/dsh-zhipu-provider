@@ -15,6 +15,8 @@ dsh plugin --profile web add ./dsh-zhipu-provider
 
 `dsh plugin` 会把包 link 进 profile 并追加到 `dsh.profile.bundles`。host 半面模块代码变更需重启 `dsh web` 生效（模块 import 发生在启动时）；patch 结构变更走 `patchReload: live` 热重组。可用 `dsh --profile web --dump-config` 检查合成结果。
 
+> **依赖必须在被 link 的目录内就位**：profile 记录的是 `link:<目录>` 规格，pnpm 只做目录软链，**不会安装该目录自身的依赖**。若本体目录（profile link 指向的那份 checkout，如 `repos/dsh-zhipu-provider`）没有 `node_modules`，启动时报 `dsh-zhipu-provider (dsh-zhipu-provider): failed to import`，直接导入产物可复现为 `ERR_MODULE_NOT_FOUND: Cannot find package '@deepseek-ai/schemastery'`。安装后在**该目录**执行一次 `pnpm install`（或 `npm install`）即可；`node_modules` 已被 `.gitignore` 忽略，不影响仓库干净度。开发用的 worktree 里的 `node_modules` 帮不到 profile —— 它按 link 目标解析依赖。
+
 ### 凭证配置
 
 智谱 Console Key 只通过 `apiKeyEnv` 引用的环境变量或 DSH 凭证机制存放，不入库、不写入日志：
