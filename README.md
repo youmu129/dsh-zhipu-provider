@@ -10,10 +10,8 @@ DSH（DeepSeek Harness）插件：为 Web GUI 接入智谱 Coding Plan（智谱 
 ## 用法
 
 ```powershell
-dsh plugin --profile web add ./dsh-zhipu-provider
+dsh plugin --profile web add https://github.com/youmu129/dsh-zhipu-provider
 ```
-
-> link 安装指向的目录内需有 `node_modules`（在该目录执行一次 `pnpm install`），否则启动报 `failed to import`。
 
 1. 配置凭证：在设置页录入智谱 Console Key，或设置环境变量 `ZHIPU_CODING_PLAN_API_KEY`；
 2. 重启 `dsh web`，选用智谱模型即见 pill；未配置凭证时 pill 显示「未配置」并给出指引。
