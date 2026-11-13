@@ -8,11 +8,15 @@
     ".": "./lib/index.js",
     "./client": "./lib/client.js",
     "./cordis.patch.yml": "./cordis.patch.yml",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
   },
   "files": [
     "cordis.patch.yml",
-    "lib"
+    "lib",
+    "locale/*.json",
+    "icon.svg"
   ],
   "keywords": [
     "dsh-plugin"

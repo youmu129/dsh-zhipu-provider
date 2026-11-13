@@ -1,0 +1,11 @@
+<svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M7 22.5A11 11 0 0 1 29 22.5" stroke="url(#zhipu-provider-dial)" stroke-width="3" stroke-linecap="round" />
+  <path d="M18 22.5L24 15.5" stroke="#658EFF" stroke-width="2.5" stroke-linecap="round" />
+  <circle cx="18" cy="22.5" r="2.5" fill="#658EFF" />
+  <defs>
+    <linearGradient id="zhipu-provider-dial" x1="7" y1="22.5" x2="29" y2="22.5" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#41E1AC" />
+      <stop offset="1" stop-color="#658EFF" />
+    </linearGradient>
+  </defs>
+</svg>

@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Zhipu coding plan provider",
+    "description": "Seeds the zhipu-coding-plan route (GLM-5.3 / GLM-5.3-Flash) into the Models page and shows a usage pill under the composer in Zhipu sessions: 5-hour window and weekly quota percentages (red at 90%+), with a panel for used/total/remaining and reset times. The seed is authoritative and re-applied on every start, overwriting manual edits to this route; uninstall the plugin to customize or remove it. The API key resolves per request from the ZHIPU_CODING_PLAN_API_KEY credential (Settings > Credentials or the environment); without it the pill shows an unconfigured hint."
+  }
+}
