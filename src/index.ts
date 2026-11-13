@@ -1,15 +1,16 @@
 // host 半面入口：settings 播种器 + 智谱用量 API。
 //
-// 播种机制（迁自 dsh-plugin-raven v0.5.0+）：本插件不拥有 `llm-pi-ai` 行
-// （patch 层对目标行是整行替换 `config`，多个 bundle 的 providers 无法合并），
-// 改在启动、全部条目挂载 settle 后，经 settings 服务把 zhipu-coding-plan
-// 路由合并进用户层（profile cordis.patch.yml）——与 Web Models 页「自定义
-// 模型 API」完全同一条写入路径（update → mergeLayers，按 provider 键合并，
-// 不整段覆盖）。生效配置中已存在该路由（无论来自哪个层）即跳过：用户在
-// Models 页的字段编辑永不被覆盖，dsh-plugin-custom-providers 在 bundle 层
-// 注册的同名路由也会让播种自动让位，两插件互不冲突、层序不敏感。
-// 删除该路由后下次启动会重新播种——要永久移除请卸载本插件，或在 patch 中
-// 禁用本挂载行（disabled: true）。
+// 播种机制（写入路径迁自 dsh-plugin-raven v0.5.0+，策略为种子权威）：
+// 本插件不拥有 `llm-pi-ai` 行（patch 层对目标行是整行替换 `config`，多个
+// bundle 的 providers 无法合并），改在每次启动、全部条目挂载 settle 后读
+// 生效配置，比对 zhipu-coding-plan 路由与种子：缺失或不一致即经 settings
+// 服务把种子覆写进用户层（profile cordis.patch.yml）——与 Web Models 页
+// 「自定义模型 API」完全同一条写入路径（update → mergeLayers，按 provider
+// 键合并，只覆写本路由、不整段覆盖）。种子因此是该路由的唯一事实源：模型
+// 上架 / 规格跟进只需改种子，重启即自动同步生效配置，无需手工编辑用户层；
+// 代价是用户在 Models 页对该路由的编辑、以及 dsh-plugin-custom-providers
+// 在 bundle 层的同名注册，都会在下次启动被种子覆平——要自定义或移除请
+// 卸载本插件，或在 patch 中禁用本挂载行（disabled: true）。
 //
 // provider 定义迁自 dsh-plugin-custom-providers 的 cordis.patch.yml
 // zhipu-coding-plan 段，逐字段一致（该定义无 compat 段）。
@@ -26,6 +27,7 @@
 // connection 为可选取用：组合缺 connection 时跳过路由注册（播种不受影响）。
 
 import z from '@deepseek-ai/schemastery'
+import { isDeepStrictEqual } from 'node:util'
 import { AdapterUnconfiguredError } from './model.ts'
 import { ZHIPU_DEFAULT_BASE_URL, fetchZhipuUsage } from './zhipu.ts'
 import { UsageStore } from './store.ts'
@@ -33,8 +35,8 @@ import { UsageStore } from './store.ts'
 /** The settings namespace (= profile entry id) of the pi-ai adapter row. */
 const NS = 'llm-pi-ai'
 
-/** The provider route this plugin seeds. */
-const ROUTE = 'zhipu-coding-plan'
+/** The provider route this plugin seeds (exported for tests). */
+export const ROUTE = 'zhipu-coding-plan'
 
 /** One seeded model; fields follow PiAiProviderProfile's model entry. */
 interface SeedModel {
@@ -81,13 +83,18 @@ const PROFILE: SeedProfile = {
 }
 
 /**
- * 播种判定：生效 providers 里已存在本路由（无论来自哪个层）即跳过，
- * 用户编辑与其他 bundle（custom-providers）的同名注册因此永不被覆盖。
+ * 播种判定：生效 providers 里本路由缺失、或与种子不深度一致（无论来自哪个
+ * 层：滞后快照缺新模型、用户在 Models 页的编辑、其他 bundle 的同名注册）
+ * 即需要覆写；写入按 provider 键合并，只影响 zhipu-coding-plan 这一个路由。
  * @param providers 生效配置的 providers 字典（describe().value.providers）。
- * @returns 是否需要播种。
+ * @returns 是否需要播种/覆写。
  */
 export function shouldSeed(providers: unknown): boolean {
-  return !(typeof providers === 'object' && providers !== null && ROUTE in providers)
+  const route =
+    typeof providers === 'object' && providers !== null
+      ? (providers as Record<string, unknown>)[ROUTE]
+      : undefined
+  return !isDeepStrictEqual(route, PROFILE)
 }
 
 /**
@@ -143,7 +150,7 @@ export function apply(ctx: any, config: PluginConfig): void {
     if (!shouldSeed((descriptor.value ?? {}).providers)) return
     // 无 expectedRevision：启动期没有交互写入方，last-write-wins 即正确语义
     await settings.update(NS, { providers: { [ROUTE]: seedProfile() } })
-    ctx.logger.info(`dsh-zhipu-provider: 已将 ${ROUTE} 播种到用户层（profile cordis.patch.yml），Models 页可管理`)
+    ctx.logger.info(`dsh-zhipu-provider: ${ROUTE} 缺失或与种子不一致，已覆写为种子到用户层（profile cordis.patch.yml）`)
   }
 
   function report(error: unknown): void {

@@ -4,15 +4,17 @@
 // 2. 迁移基准守卫：关键字段与 dsh-plugin-custom-providers 的
 //    zhipu-coding-plan 定义一致（含无 compat 段）；
 // 3. patch 不目标 `llm-pi-ai` 行（多 bundle 覆盖问题的回归守卫）；
-// 4. shouldSeed 判定：路由存在（任意层）即跳过；
+// 4. shouldSeed 判定：路由缺失或与种子不深度一致（任意层来源）即覆写，
+//    深度一致才跳过；
 // 5. apply 等 loader settle 后再注册用量路由（挂载顺序回归守卫）；
-// 6. 凭证缺失时 usage 路由返回 unconfigured 快照（不报错）。
+// 6. seed 对不匹配路由经 settings 服务覆写为种子（apply 级回归守卫）；
+// 7. 凭证缺失时 usage 路由返回 unconfigured 快照（不报错）。
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { apply, name, seedProfile, shouldSeed } from '../src/index.ts'
+import { apply, name, ROUTE, seedProfile, shouldSeed } from '../src/index.ts'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 
@@ -56,11 +58,53 @@ test('patch inserts own row and never targets the llm-pi-ai row', () => {
     'patch 不得目标 llm-pi-ai 行（整行替换会覆盖其他 bundle 的 providers）')
 })
 
-test('shouldSeed skips when the route exists in any layer', () => {
+test('shouldSeed overwrites when the route is missing or does not match the seed', () => {
+  // 缺失 / 其他路由 → 需要播种
   assert.equal(shouldSeed(undefined), true)
   assert.equal(shouldSeed({}), true)
   assert.equal(shouldSeed({ 'kimi-coding-plan': {} }), true)
-  assert.equal(shouldSeed({ 'zhipu-coding-plan': {} }), false)
+  // 与种子深度一致（无论来自哪个层）才跳过
+  assert.equal(shouldSeed({ 'zhipu-coding-plan': seedProfile() }), false)
+  // 存在但不匹配：空对象 / 滞后快照（缺新模型）/ 用户编辑 → 覆写为种子
+  assert.equal(shouldSeed({ 'zhipu-coding-plan': {} }), true)
+  const stale = seedProfile()
+  stale.models = stale.models.slice(1)
+  assert.equal(shouldSeed({ 'zhipu-coding-plan': stale }), true)
+  const edited = seedProfile()
+  edited.displayName = 'My Zhipu'
+  assert.equal(shouldSeed({ 'zhipu-coding-plan': edited }), true)
+})
+
+test('seed overwrites a mismatched route through the settings service', async () => {
+  // apply 级守卫：生效路由与种子不一致（如滞后快照缺新模型）时，
+  // 经 settings.update 按 provider 键覆写为种子；一致时不产生写入。
+  const updates: Array<[string, unknown]> = []
+  const makeSettings = (mismatch: boolean) => ({
+    describe: () => [
+      { ns: 'llm-pi-ai', value: { providers: { 'zhipu-coding-plan': mismatch ? {} : seedProfile() } } },
+    ],
+    update: async (ns: string, patch: unknown) => {
+      updates.push([ns, patch])
+    },
+  })
+  const makeCtx = (mismatch: boolean) => ({
+    logger: { warn: () => {}, info: () => {} },
+    loader: { await: async () => {} },
+    get: (n: string) => (n === 'settings' ? makeSettings(mismatch) : undefined),
+    interval: () => () => {},
+    effect: () => {},
+  })
+  // 不一致 → 恰好写入一次，payload 为种子
+  apply(makeCtx(true), resolvedConfig())
+  await new Promise((resolve) => setTimeout(resolve, 0))
+  assert.equal(updates.length, 1, '不匹配时应恰好写入一次')
+  const [ns, patch] = updates[0] as [string, { providers: Record<string, unknown> }]
+  assert.equal(ns, 'llm-pi-ai')
+  assert.deepEqual(patch.providers[ROUTE], seedProfile())
+  // 一致 → 不再写入
+  apply(makeCtx(false), resolvedConfig())
+  await new Promise((resolve) => setTimeout(resolve, 0))
+  assert.equal(updates.length, 1, '与种子一致时不应写入')
 })
 
 test('apply defers usage API setup until loader settles (mount-order fix)', async () => {
