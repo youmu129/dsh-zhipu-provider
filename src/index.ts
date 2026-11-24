@@ -57,7 +57,7 @@ interface SeedProfile {
   models: SeedModel[]
 }
 
-/** The zhipu-coding-plan route (migrated verbatim from dsh-plugin-custom-providers; that definition declares no compat section). */
+/** The zhipu-coding-plan route (migrated from dsh-plugin-custom-providers, no compat section; models kept in sync with the GLM Coding Plan lineup). */
 const PROFILE: SeedProfile = {
   displayName: 'Zhipu Coding Plan',
   apiKeyEnv: 'ZHIPU_CODING_PLAN_API_KEY',
@@ -65,6 +65,17 @@ const PROFILE: SeedProfile = {
   baseURL: 'https://open.bigmodel.cn/api/coding/paas/v4',
   reasoning: 'max',
   models: [
+    // GLM-5.4 旗舰（2026-11-23 上线 Coding Plan，规格据智谱官方文档 glm-5.4 页
+    // 与「如何切换模型」指南）：多模态输入（视频/文件超 DSH 的 text/image 模态
+    // 不声明）、思考档位 low/high/max（关闭思考降为 low，故不声明 off）；模型
+    // 本体 1M 上下文，但 Coding Plan 官方建议客户端窗口 512000，种子按建议取值
+    {
+      id: 'glm-5.4',
+      name: 'GLM-5.4',
+      contextWindow: 512000,
+      input: ['text', 'image'],
+      reasoningEfforts: { low: 'low', high: 'high', max: 'max' },
+    },
     {
       id: 'glm-5.3',
       name: 'GLM-5.3',

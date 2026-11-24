@@ -2,7 +2,8 @@
 // 1. 种子 profile 满足 llm-pi-ai 手写路由的硬性要求（api、baseURL、非空
 //    models —— 缺失会提交到 Host 才被拒）；
 // 2. 迁移基准守卫：关键字段与 dsh-plugin-custom-providers 的
-//    zhipu-coding-plan 定义一致（含无 compat 段）；
+//    zhipu-coding-plan 基准一致（含无 compat 段），新上架模型按智谱官方
+//    文档规格跟进；
 // 3. patch 不目标 `llm-pi-ai` 行（多 bundle 覆盖问题的回归守卫）；
 // 4. shouldSeed 判定：路由缺失或与种子不深度一致（任意层来源）即覆写，
 //    深度一致才跳过；
@@ -32,8 +33,9 @@ test('seed profile satisfies the hand-declared route requirements', () => {
   }
 })
 
-test('seed profile matches the zhipu-coding-plan definition in dsh-plugin-custom-providers', () => {
-  // 迁移基准：repos/dsh-plugin-custom-providers/cordis.patch.yml 的 zhipu-coding-plan 段
+test('seed profile matches the zhipu-coding-plan baseline plus GLM-5.4', () => {
+  // 迁移基准：repos/dsh-plugin-custom-providers/cordis.patch.yml 的 zhipu-coding-plan 段；
+  // 模型断言按 id 分组（不依赖列表顺序，新模型置顶不影响基准）
   const profile = seedProfile()
   assert.equal(profile.displayName, 'Zhipu Coding Plan')
   assert.equal(profile.apiKeyEnv, 'ZHIPU_CODING_PLAN_API_KEY')
@@ -42,11 +44,21 @@ test('seed profile matches the zhipu-coding-plan definition in dsh-plugin-custom
   assert.equal(profile.reasoning, 'max')
   assert.deepEqual(
     profile.models.map((m) => m.id),
-    ['glm-5.3', 'glm-5.3-flash'],
+    ['glm-5.4', 'glm-5.3', 'glm-5.3-flash'],
   )
-  assert.deepEqual(profile.models[0].reasoningEfforts, { low: 'low', high: 'high', max: 'max' })
-  assert.deepEqual(profile.models[0].input, ['text'])
-  assert.deepEqual(profile.models[1].input, ['text', 'image'])
+  const byId = new Map(profile.models.map((m) => [m.id, m]))
+  // GLM-5.4 规格据智谱官方文档 glm-5.4 页与「如何切换模型」：多模态输入、
+  // 思考档位 low/high/max；模型本体 1M 上下文，Coding Plan 官方建议客户端
+  // 窗口 512000
+  const glm54 = byId.get('glm-5.4')!
+  assert.equal(glm54.name, 'GLM-5.4')
+  assert.equal(glm54.contextWindow, 512000)
+  assert.deepEqual(glm54.input, ['text', 'image'])
+  assert.deepEqual(glm54.reasoningEfforts, { low: 'low', high: 'high', max: 'max' })
+  // 基准两模型沿用迁移定义
+  assert.deepEqual(byId.get('glm-5.3')!.reasoningEfforts, { low: 'low', high: 'high', max: 'max' })
+  assert.deepEqual(byId.get('glm-5.3')!.input, ['text'])
+  assert.deepEqual(byId.get('glm-5.3-flash')!.input, ['text', 'image'])
   // 基准定义无 compat 段（与 kimi/bailian 不同），迁移保持一致
   assert.ok(!('compat' in profile), 'zhipu-coding-plan 基准定义无 compat 段')
 })
