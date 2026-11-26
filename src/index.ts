@@ -43,6 +43,7 @@ interface SeedModel {
   id: string
   name: string
   contextWindow: number
+  maxTokens?: number
   input: string[]
   reasoningEfforts: Record<string, string>
 }
@@ -68,11 +69,12 @@ const PROFILE: SeedProfile = {
     // GLM-5.4 旗舰（2026-11-23 上线 Coding Plan，规格据智谱官方文档 glm-5.4 页
     // 与「如何切换模型」指南）：多模态输入（视频/文件超 DSH 的 text/image 模态
     // 不声明）、思考档位 low/high/max（关闭思考降为 low，故不声明 off）；模型
-    // 本体 1M 上下文，但 Coding Plan 官方建议客户端窗口 512000，种子按建议取值
+    // 本体 1M 上下文、128K 最大输出，种子按本体规格取值
     {
       id: 'glm-5.4',
       name: 'GLM-5.4',
-      contextWindow: 512000,
+      contextWindow: 1000000,
+      maxTokens: 128000,
       input: ['text', 'image'],
       reasoningEfforts: { low: 'low', high: 'high', max: 'max' },
     },

@@ -48,11 +48,11 @@ test('seed profile matches the zhipu-coding-plan baseline plus GLM-5.4', () => {
   )
   const byId = new Map(profile.models.map((m) => [m.id, m]))
   // GLM-5.4 规格据智谱官方文档 glm-5.4 页与「如何切换模型」：多模态输入、
-  // 思考档位 low/high/max；模型本体 1M 上下文，Coding Plan 官方建议客户端
-  // 窗口 512000
+  // 思考档位 low/high/max；模型本体 1M 上下文、128K 最大输出
   const glm54 = byId.get('glm-5.4')!
   assert.equal(glm54.name, 'GLM-5.4')
-  assert.equal(glm54.contextWindow, 512000)
+  assert.equal(glm54.contextWindow, 1000000)
+  assert.equal(glm54.maxTokens, 128000)
   assert.deepEqual(glm54.input, ['text', 'image'])
   assert.deepEqual(glm54.reasoningEfforts, { low: 'low', high: 'high', max: 'max' })
   // 基准两模型沿用迁移定义
